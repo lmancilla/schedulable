@@ -47,7 +47,7 @@ module Schedulable
       end
 
       def self.param_names
-        [:id, :date, :time, :rule, :until, :count, :interval, day: [], day_of_week: [monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []]]
+        [:id, :date, :time, :time_end, :rule, :until, :count, :interval, day: [], day_of_week: [monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: []]]
       end
 
       def update_schedule()
@@ -63,7 +63,15 @@ module Schedulable
         time_string = time.strftime("%d-%m-%Y %I:%M %p")
         time = Time.zone.parse(time_string)
 
-        @schedule = IceCube::Schedule.new(time)
+        time_end = Date.today.to_time(:utc)
+        if self.time_end.present?
+          time_end = time_end + self.time_end.seconds_since_midnight.seconds
+          schedule_time_end = time_end - time
+        else
+          schedule_time_end = 0
+        end
+
+        @schedule = IceCube::Schedule.new(time, duration: schedule_time_end)
 
         if self.rule && self.rule != 'singular'
 
@@ -72,7 +80,7 @@ module Schedulable
           rule = IceCube::Rule.send("#{self.rule}", self.interval)
 
           if self.until
-            rule.until(self.until)
+            rule.until(self.until + 1)
           end
 
           if self.count && self.count.to_i > 0
